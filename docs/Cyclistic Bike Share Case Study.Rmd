@@ -1,0 +1,484 @@
+---
+title: "Cyclistic Bike Share Case Study"
+author: "Peter Lawal"
+date: "2023-12-23"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## __Introduction__ 
+
+As a junior analyst, working with the marketing analyst team with cysclistic, a bike share company based in Chicago, I have been tasked with gaining insight from company data to determine how casual and annual members use cyclistic bikes differently. From the insights gained in this analysis, the marketing team will design a new strategy to convert casual members into annual members as the director of marketing believes that the future of the company lies in converting casual members into annual members. 
+
+#### __Stakeholders__
+* __Lily Moreno__ - the director of marketing.  
+* __Cyclistic marketing analytics team__ - a team of analysts responsible for collecting analyzing and reporting data that helps guide Cyclistics marketing strategy. 
+* __Cyclistic Executive team__ - a detail oriented executive team that will decide on the approval of the recommended marketing strategy. 
+
+##### __A Short Brief About Cyclistic__
+Cyclistic is a bike share company that was launched in 2016, which has since grown to a fleet of over 5,800 bicycles, geo-tracked and locked into a network of almost 700 stations across Chicago. Cyclistics marketing strategy till now has relied on building a general awareness and appealing to a broad consumer segment. one key to this strategy has been the flexibility of its pricing plans, which include full-day passes and annual memberships. Customers who purchase a full day pass are called casual riders, while those with annual memberships are called cyclistic members.   
+Financial analysts at cyclistic have concluded that annual memberships are much more profitable than casual riders, thus the director of marketing has believes that there is a good chance to convert casual riders to cyclistic members.   
+The marketing analyst team need to understand better how annual members and casual riders differ. The team is interested in analyzing the historical data of cyclistic to identify trends. 
+
+##### __Case Question__
+
+*how do cyclistic members and casual riders use cyclistic differently?
+*what can we infer from the insights we gain in the analysis that may help the marketing team develop their strategy?
+
+##### __Key Tasks__ 
+* Determine how cyclistic riders are using their bikes differently   
+* Provide recommendations based on the analyses   
+
+##### __project methodology__
+A - Ask 
+P - Prepare 
+P - Process 
+A - Analyze 
+S - Share 
+A - Act 
+
+##### __The Dataset__ 
+The data set used in this analysis is provided by Motivate Inc. and can be accessed here [link](https://divvy-tripdata.s3.amazonaws.com/index.html). 
+
+For this analysis, the data sets for rides taken in July, August September and October 2023 were used. The data was in CSV format, organized by columns.
+The data was downloaded and placed in a working folder for use. The data was sorted in Microsoft Excel by trip start time. The Data was found to be current, original and comprehensive. 
+
+The data contained Trip Ids, Start and end times for the trips, start and end stations and their station ids, Latitudes and longitudes of the start and end locations, the type of user and the type of bicycle used in the trip. 
+
+###### __Processing the Data__ 
+Microsoft Excel was used to process the data and check it for errors and transform it so I could work with it effectively. A new column called ride_length was created and filled information calculated from subtracting the trip end time from the trip start time, and formatting the cells in time format. 
+A new column for Day of the week that each ride started was created and filled using the Weekday function with 1 = Sunday and 7 = Saturday and formatting the column as General. 
+
+Due to the size of this data set, the files will then be imported into R to analyze the data.
+
+##### __Working in in R__
+
+The purpose of R in this analysis would be to help consolidate all the data into a single data frame to allow for analysis and help answer the key question "in what ways do Members and Casual riders use Cyclistic differently?" 
+
+I will go on to load the libraries that would be used for this analysis which are the `tidyverse` `lubridate`and `ggplot2` packages. 
+* `tidyvere` for working with data 
+* `lubridate` for working with date attributes
+* `ggplot` to visualize results of the analysis 
+* `getwd` to get the working directory. 
+* `readr` to import csv files into R
+
+```{r libraries}
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(readr)
+getwd()
+```
+
+
+###### __Importing The Data Set and Further Cleaning__
+
+Now that the libraries and packages have been loaded, we will proceed to import our data sets into R using the `readcsv` function.
+
+```{r importing dataset, echo=FALSE}
+august_trip_data <- read.csv("august_trip_data.csv")
+october_trip_data <- read.csv("october_trip_data_2.csv")
+july_trip_data <- read.csv("trip_data_2023_july.csv")
+september_trip_data <- read.csv("september_trip_data.csv")
+```
+in order to be able to bring all the columns into one dataframe in R, we need to make sure the column names match using the `colnames` function
+
+```{r column names for all data sets}
+colnames(august_trip_data)
+colnames(august_trip_data)
+colnames(september_trip_data)
+colnames(october_trip_data)
+```
+
+
+ After investigating the column names, I discovered some column names did not match each other, so i proceeded to write code chunks to align the column names.
+```{r aligning the column names}
+july_trip_data <- rename(july_trip_data, trip_id = ride_id, mode_day_of_week = Mode_day_of_week, max_trip_length = max_ride_length, start_time = started_at, end_time = ended_at, max_trip_length = max_ride_length)
+august_trip_data <- rename(august_trip_data, trip_id = ride_id, max_trip_length = max_ride_length, start_time = started_at, end_time = ended_at)
+september_trip_data <- rename(september_trip_data, trip_id = ride_id, start_time = started_at, end_time = ended_at)
+october_trip_data <- rename(october_trip_data, trip_id = ride_id, max_trip_length = max_ride_length, mean_trip_length = mean_trip_length, start_time = started_at, end_time = ended_at)
+```
+
+
+I investigated the data further using the structure function to to identify the formatting of the columns and make sure that they are aligned using the `str` function
+```{r structure of the data sets}
+str(july_trip_data)
+str(august_trip_data)
+str(september_trip_data)
+str(october_trip_data)
+```
+
+I also discovered that the october_trip_data frame had some empty columns which i proceeded to remove using the `select` function
+```{r removin empty columns in October trip data}
+october_trip_data <- october_trip_data %>% 
+  select(-c(X, X.1, X.2))
+```
+
+next, I will add the `hms` library to allow for conversion of date to time formattings. 
+```{r adding hms library}
+library(hms)
+```
+
+After confirming all the formatting is correct, I will then stack the datafranes into one mega data frame. 
+I will use the bind rows function which allows us to have a longer data frame, instead of the bind col function which allows us to have a wider frame. 
+```{r creating the working frame}
+all_trips <- bind_rows(july_trip_data, august_trip_data, september_trip_data, october_trip_data)
+```
+
+After bringing all of the trip data into a single frame, we will now proceed to remove columns we will not be using in the analysis 
+```{r removing geographic information from the data set}
+all_trips <- all_trips %>% 
+  select(-c(start_lat, end_lat, start_lng, end_lng))
+```
+
+I inspect the new data frame using the code chunk below
+```{r inspecting the new data frame}
+colnames(all_trips)
+nrow(all_trips)
+dim(all_trips) 
+head(all_trips)
+tail(all_trips)
+str(all_trips)
+```
+In the new data frame, there are 14 columns, and 2,742,197 rows and the last data point recorded for any trip was on the 30th of
+October, 2023, thus I can conclude that the data covers the period for the analysis.   
+
+The `summary`function would be used to give a statistical summary of all the numeric data in the data set.
+```{r getting a summary of the data set}
+summary(all_trips)
+```
+
+
+in this case, it doesn't really work for time format data types.
+the format for time related columns will be modified to allow for performing more statistical operations on the data set. 
+```{r}
+table(all_trips$member_casual)
+
+```
+
+
+The above  function is to see the types of input on the usertype that is used in the table to make sure there are no confusion 
+I proceeded to add columns that list the date, month, day and year of each data point
+```{r adding columns to split ride time information}
+all_trips$date <- as.Date(all_trips$start_time)
+all_trips$month <- format(as.Date(all_trips$date), "%m")
+all_trips$day <- format(as.Date(all_trips$date), "%d")
+all_trips$year <- format(as.Date(all_trips$date), "%Y")
+all_trips$day_of_week <- format(as.Date(all_trips$date), "%A")
+```
+
+
+I will then add a ride length calculation to the dataset calculated in seconds using the `difftime` function,
+but I will first convert the `start_time` and `end_time` to POSIXct format to allow for accurate results from the `difftime` calculation.
+```{r converting start time to POSIXct}
+all_trips$start_time <- dmy_hm(all_trips$start_time) 
+all_trips$end_time <- dmy_hm(all_trips$end_time)
+```
+
+
+```{r calculating the ride_length}
+all_trips$ride_length <- difftime(all_trips$end_time,all_trips$start_time)
+str(all_trips)
+```
+
+
+The is.factor function to check if a column contains numbers in numeric format
+The answer was false and a new line was added to convert the time format into numeric form, to allow for calculations 
+```{r formatting the ride length}
+is.factor(all_trips$ride_length)
+all_trips$ride_length <- as.numeric(as.character(all_trips$ride_length))
+is.numeric(all_trips$ride_length)
+```
+
+
+I discovered that some recorded trips originated at HQ QR which means that the bikes were taken out for maintenance , we need to remove these data points as they can skew the data sets
+```{r removing wrongly recorded trips}
+all_trips_v2 <- all_trips[!(all_trips$start_station_name == "HQ QR" | all_trips$ride_length<0),]
+```
+
+40 points have been removed
+```{r}
+tibble(all_trips_v2)
+```
+
+
+at this point, the data set is relatively clean, I can now run our descriptive analysis on the data set
+```{r running descriptive statistics of the data set}
+mean(all_trips_v2$ride_length)
+median(all_trips_v2$ride_length) 
+max(all_trips_v2$ride_length) 
+min(all_trips_v2$ride_length)
+```
+
+
+If you choose, the above chunk of code can also condensed into one line of code 
+```{r using the summary function}
+summary(all_trips_v2$ride_length)
+```
+
+
+
+###### __Aggregating by usertype and monthy mean__
+
+I will then agregate the descriptive stats by user type
+The `FUN` means function
+```{r aggregations}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = mean ) #casual = 1794.0200  member = 794.9642
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = median ) #casual= 780 and member = 540
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = max)  #casual = 5909,340,  member = 90,000
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = min ) #casual and member = 0
+
+```
+
+```{r monthly means and totals}
+
+monthly_mean <- aggregate(all_trips_v2$ride_length ~ all_trips_v2$month + all_trips_v2$member_casual, FUN = mean )
+ aggregate(all_trips_v2$ride_length ~ all_trips_v2$month + all_trips_v2$member_casual, FUN = mean )
+monthly_total <- aggregate(all_trips_v2$ride_length ~ all_trips_v2$month + all_trips_v2$member_casual, FUN = sum )
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$month + all_trips_v2$member_casual, FUN = sum )
+```
+
+
+The last two lines will create data freames that agregate the datasets based on the monthly means and monthly averages of the data points. 
+
+
+
+###### __Agregating by user type__
+
+I will aggregate by day of week for each member type but first put the days of the week in order
+```{r sorting by day of week}
+all_trips_v2$day_of_week<- ordered(all_trips_v2$day_of_week, levels=c("Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"))
+
+```
+
+and then aggregate 
+```{r}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual+all_trips_v2$day_of_week, FUN = mean )
+
+```
+
+from here I look at the ridership data by the type of bike used for the trips 
+```{r }
+all_trips_v2 %>% 
+  mutate(weekday = wday(start_time, label = TRUE)) %>%  #creates a weekdayfieldusing the wday() funtion
+  group_by(member_casual, weekday) %>%  #groups by usertype and weekday
+  summarise(number_of_rides = n(), average_duration = mean (ride_length)) %>%  #calculates the number of rides and average duration and the mean or average ride duration  
+  arrange(member_casual, weekday) #sorts the results 
+```
+
+
+
+#### __Visualizing The Results__
+
+##### __Number of Rides By Average Trip Duration, Grouped by User type__
+This operation will be performed using  `ggplot2`
+```{r average trip duration}
+all_trips_v2 %>% 
+  mutate(weekday = wday(start_time, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>%
+  summarise(number_of_rides = n(), average_duration = mean (ride_length)) %>%
+  arrange(member_casual, weekday) %>% 
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) + 
+  geom_col(position = "dodge")+
+  scale_y_continuous(labels = scales::comma) #this line prevents the axis labels from rendering in  exponents 
+
+```
+
+
+##### __Number of Rides Grouped by Usertype__
+```{r rides grouped by usertype}
+all_trips_v2 %>% 
+  mutate(weekday = wday(start_time, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>%
+  summarise(number_of_rides = n(), average_duration = mean (ride_length)) %>%
+  arrange(member_casual, weekday) %>% 
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) + 
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = scales::comma)
+```
+
+
+######__Other Vizzes__
+I will create some more data frames that could give us some more information about how users may use cyclistic differently.
+These frames will be created using the `aggregate` function. 
+
+I will create a rideable_counts dataframe  which summarizes all trips by bicycle type and usertype  
+```{r Couts of rides by rideable}
+aggregate(all_trips_v2$rideable_type, by = list(all_trips_v2$rideable_type, all_trips_v2$member_casual), FUN = length)
+rideable_counts <- aggregate(all_trips_v2$rideable_type, by = list(all_trips_v2$rideable_type, all_trips_v2$member_casual), FUN = length)
+```
+```{r plotting rideable counts}
+aggregate(all_trips_v2$rideable_type, by = list(all_trips_v2$rideable_type, all_trips_v2$member_casual), FUN = length) %>% 
+  ggplot(aes(x = Group.1, y = x, fill = Group.2)) + 
+  geom_col(position = "dodge")+
+  labs(title = "No. of trips by bicycle type and user type", x ="User and Bike type", y ="count of trips", fill = "Usertype" )
+```
+
+
+
+__Average Ride Length By Bicycle Type__
+a data frame of average ride length by bicycle type 
+```{r average ride length by rideabl}
+ave_ride_length_by_rideable <- aggregate(all_trips_v2$ride_length ~ all_trips_v2$rideable_type + all_trips_v2$member_casual, FUN = mean)
+ave_ride_length_by_rideable$`all_trips_v2$ride_length` <- as.integer(as.double(ave_ride_length_by_rideable$`all_trips_v2$ride_length`)) #to allow the ave ride length to be plotted as it currently is formatted as a dbl
+tibble(ave_ride_length_by_rideable)
+```
+```{r average ride length by rideable}
+ave_ride_length_by_rideable %>% 
+  ggplot(aes(x = `all_trips_v2$rideable_type`, y = `all_trips_v2$ride_length`, fill = `all_trips_v2$member_casual`)) + 
+  geom_col(position = "dodge")+
+  labs(title = "Average Trip Length By bicycle Type", x ="User and Bike type", y ="average trip length (secs)", fill = "Usertype" ) +
+  scale_y_continuous(labels = scales::comma)
+```
+
+
+__Average ride length by Day of week__
+```{r average ride length by day of week}
+ ave_ride_length_by_day_of_week <- aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = mean)
+tibble(ave_ride_length_by_day_of_week)
+```
+```{r viz of average ride length by day of week}
+ave_ride_length_by_day_of_week %>% 
+  ggplot(aes(x = `all_trips_v2$day_of_week`, y = `all_trips_v2$ride_length`, fill = `all_trips_v2$member_casual`)) + 
+  geom_col(position = "dodge")+
+  labs(title = "Average Trip Length By Day Of Week", x ="day of week", y ="average trip length (secs)", fill = "Usertype" ) +
+  scale_y_continuous(labels = scales::comma)
+```
+
+
+__Total ride length by day of week__ 
+```{r total ride length by day of week}
+total_ride_length_by_day <- aggregate(all_trips_v2$ride_length ~ all_trips_v2$day_of_week, FUN = sum)
+total_ride_length_by_day$`all_trips_v2$ride_length` <- as.numeric(as.double(total_ride_length_by_day$`all_trips_v2$ride_length`))
+tibble(total_ride_length_by_day)
+```
+```{r viz of total ride length by day of week}
+total_ride_length_by_day %>% 
+   ggplot(aes(x = `all_trips_v2$day_of_week`, y = `all_trips_v2$ride_length`)) + 
+  geom_col(position = "dodge")+
+  labs(title = "Total Trip Length By Day Of Week", x ="Day of week", y ="Total Trip Length (secs)") +
+  scale_y_continuous(labels = scales::comma)
+```
+
+
+__Total ride length by month__ 
+```{r Total trip length by month all users }
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$month, FUN = sum)
+total_trip_length_by_month <- aggregate(all_trips_v2$ride_length ~ all_trips_v2$month, FUN = sum)
+```
+```{r total trip length by month}
+total_trip_length_by_month %>% 
+  ggplot(aes(x = `all_trips_v2$month`, y = `all_trips_v2$ride_length`)) + 
+  geom_col(position = "dodge")+
+  labs(title = "Total Trip Length By Month", x ="Month", y ="Total Trip Length (secs)") +
+  scale_y_continuous(labels = scales::comma)
+```
+
+
+__Total Trip Length By Month And Usertype__
+```{r Total trip length by month and usertype}
+aggregate(all_trips_v2$ride_length, by = list(all_trips_v2$month, all_trips_v2$member_casual), FUN = sum)
+total_trip_length_by_month_usertype <- aggregate(all_trips_v2$ride_length, by = list(all_trips_v2$month, all_trips_v2$member_casual), FUN = sum)
+total_trip_length_by_month_usertype %>% 
+  ggplot(aes(x = `Group.1`, y = `x`, fill= `Group.2`)) + 
+  geom_col(position = "dodge")+
+  labs(title = "Total Trip Length By Month and Usertype", x ="Month", y ="Total Trip Length (secs)", fill ="usertype") +
+  scale_y_continuous(labels = scales::comma)
+```
+
+
+__Average ride length  by month and usertype__ 
+
+```{r average ride length by month and usertype}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$month + all_trips_v2$member_casual, FUN = mean)
+average_trip_length_by_month <- aggregate(all_trips_v2$ride_length ~ all_trips_v2$month + all_trips_v2$member_casual, FUN = mean)
+average_trip_length_by_month %>% 
+  ggplot(aes(x = `all_trips_v2$month`, y = `all_trips_v2$ride_length`, fill= `all_trips_v2$member_casual`)) + 
+  geom_col(position = "dodge")+
+  labs(title = "Average Trip Length By Month and Usertype", x ="Month", y ="Average Trip Length (secs)", fill ="usertype") +
+  scale_y_continuous(labels = scales::comma)
+```
+
+
+
+#### __Average count of trips per month__
+I will finally visualize the average count of trips per month. 
+```{r average count of trips per month}
+aggregate(all_trips_v2$trip_id, by = list(all_trips_v2$month, all_trips_v2$member_casual), FUN = length)
+aggregate(all_trips_v2$trip_id, by = list(all_trips_v2$month, all_trips_v2$member_casual), FUN = length) %>% 
+  ggplot(aes(x = `Group.1`, y = `x`, fill= `Group.2`)) + 
+  geom_col(position = "dodge")+
+  labs(title = "Trip Count By Month and Usertype", x ="Month and Usertype", y ="Trip Count", fill ="UserType") +
+  scale_y_continuous(labels = scales::comma)
+```
+
+
+#### __Results__
+My observations of the data set are summarized below:
+
+* The average trip on cyclistic lasted 1,188.762 seconds while the  longest running trip which was by a casual user 
+lasted for 5,909,340 second.
+* Casual users ride for an average of 1,794.02 seconds while members ride for less, averaging 794.96 seconds.
+
+* The longest running trip for members is 90,000 seconds.
+
+* For the day of the week, Sundays happened to have the highest average duration of trips with Casual users averaging 
+2,071 seconds and members averaged 889 seconds. However, by day of the week, Members took more trips than Casual users with the highest count for members being on Tuesdays. Ride counts on the weekends for both groups seemed to mirror each other on the weekends with more cumulative trips on Saturdays and Sundays. 
+
+* By bicycle type, casual users favored the electric bike over the classic bike while members favored the classic bike over the electric bike. However, although docked bikes saw the lowest number of trips, they had the highest average trip length, averaging over 13,251 seconds, with the classic bike having the second highest average trip length for both casual users and Members. It is important to note that Docked bike were only used by casual users and were discontinued in September of 2023. 
+
+* By day of the week, Wednesdays saw the lowest total trip length while Friday had the highest. 
+
+* By month, on removal of docked bikes as an option, a sharp and continuous drop of 31.193% and and 29.26% drop in total trip length in September and Octoberwas observed. 
+
+* Total trip length by user type also dropped on a monthly basis with casual users seeing a 39.91%  and 38.54% drop in trip length in September and October.
+
+Members also saw a 16.22%  and 17.76% drop in trip length in the same months, however, trip counts by members stayed higher than casual members.
+
+#### __Insights__
+The goal of this analysis is to figure out how Cyclistic user types use cyclistic differently. After analyzing the data provided, these were my findings
+
+* Casual users take on average, generally longer rides than Members however, members take more trips than casual members
+
+* Total trip length, average trip length and number of trips declined month on month from August to September. 
+
+* Users tended to favor different types of bikes for their rides, with Casual users favoring electric bikes and Members favoring classic bikes
+
+* The average trip length for user types was higher on Sundays. and weekends in general. 
+
+### __Recommendations__
+
+* We could consider promoting benefits of Annual memberships as including shorter and more convenient trips. 
+
+* Considering that the weekends see a higher average trip lengths, special offers could be promoted on weekends to Casual users to convince them to convert to annual memberships 
+
+* We may also consider extending special offers that are member only for certain bike types especially bike types favored by Casual users that may encourage casual users to convert to annual users.
+
+* Develop retention strategies such as Loyalty programs or incentives to keep members engaged considering the drop in monthly total and average rides. 
+
+
+#### __Exporting Data Frames For Visualization in an External Visualization Software__
+Add the `readxl`library to allow for writing of the data frames into worksheets
+```{r readxl libraries}
+library(readxl)
+library(openxlsx)
+```
+
+I will use the `write.xlsx` function to create an excel spreadsheet containing the data frame that has just been created. 
+```{r  data frame exports}
+write.xlsx(average_trip_length_by_month, file="average_trip_length_by_month.xlsx", sheetName="average_trip_length_by_month", colNames=TRUE, rowNames=FALSE, append=FALSE)
+write.xlsx(monthly_mean, file="monthly_mean.xlsx", sheetName="monthly_mean", colNames=TRUE, rowNames=FALSE, append=TRUE)
+write.xlsx(monthly_total, file="monthly_total.xlsx", sheetName="monthly_total", colNames=TRUE, rowNames=FALSE, append=TRUE)
+write.xlsx(rideable_counts, file="rideable_counts.xlsx", sheetName="rideable_counts", colNames=TRUE, rowNames=FALSE, append=TRUE)
+write.xlsx(ave_ride_length_by_rideable, file="ave_ride_length_by_rideable.xlsx", sheetName="ave_ride_length_by_rideable", colNames=TRUE, rowNames=FALSE, append=TRUE)
+write.xlsx(total_ride_length_by_day, file="total_ride_length_by_day.xlsx", sheetName="total_ride_length_by_day", colNames=TRUE, rowNames=FALSE, append=TRUE)
+write.xlsx(total_ride_length_by_day, file="total_ride_length_by_day.xlsx", sheetName="total_ride_length_by_day", colNames=TRUE, rowNames=FALSE, append=TRUE)
+write.xlsx(total_trip_length_by_month, file="total_trip_length_by_month.xlsx", sheetName="total_trip_length_by_month", colNames=TRUE, rowNames=FALSE, append=TRUE)
+
+```
+Now, I have come to the end of my analysis in R. The rest of the that has been to .xlsx files can then be visualised in Excel or tableau.
